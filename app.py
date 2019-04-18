@@ -1,14 +1,23 @@
+import pyrebase
 import requests
 from flask import *
-from flask_sqlalchemy import SQLAlchemy
 
+config = {
+     "apiKey": "available on your firebase dashboard",
+     "authDomain": "available on your firebase dashboard",
+     "databaseURL": "available on your firebase dashboard",
+     "projectId": "available on your firebase dashboard",
+     "storageBucket": "available on your firebase dashboard",
+     "messagingSenderId": "available on your firebase dashboard"
+}
+
+
+
+firebase = pyrebase.initialize_app(config)
+
+db_f = firebase.database()
 app = Flask(__name__)
 
-db = SQLAlchemy(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///weather_data.db'
-class City(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(10), nullable=False)
 
 @app.route('/', methods=['GET','POST'])
 def index():
@@ -16,18 +25,19 @@ def index():
         city_to_check = request.form.get('city')
 
         if city_to_check:
-            city_to_check_obj = City(name=city_to_check)
-            db.session.add(city_to_check_obj)
-            db.session.commit()
-    all_cities = City.query.all()
-    url = 'http://api.openweathermap.org/data/2.5/weather?q={}&units=metric&appid=efb5873a54c481225b7ef9b052a12b5c'
+            db_f.child("city").push({"name": city_to_check})
+            
+    all_cities_f = db_f.child("city").get()
+    t = all_cities_f.val()
+    all_cities = t.values()
+    url = 'http://api.openweathermap.org/data/2.5/weather?q={}&units=metric&appid=get_your_app_id_on_openweathermap_website_and_paste_it_here'
     weather_all = []
 
     for city in all_cities:
-        response = requests.get(url.format(city.name)).json()
+        response = requests.get(url.format(city['name'])).json()
 
         weather_data = {
-            'city': city.name,
+            'city': city['name'],
             'temperature':response['main']['temp'],
             'description':response['weather'][0]['description'],
             'icon':response['weather'][0]['icon'],
@@ -37,4 +47,4 @@ def index():
     return render_template('index.html',weather_all=weather_all)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+   app.run(debug=True)
